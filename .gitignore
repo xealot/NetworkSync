@@ -1,0 +1,17 @@
+*.pyc
+*.tmproj
+.DS_Store
+.htaccess
+Thumbs.db
+settings_local.py
+.cache
+.project
+.pydevproject
+deploy.raw.css
+deploy.raw.js
+deploy.css
+deploy.js
+.settings
+public/deploy/combined.*
+build
+dist
