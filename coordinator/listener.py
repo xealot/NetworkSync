@@ -81,7 +81,7 @@ class FileWriter(object):
         print 'Sync Done.'
 
 
-if __name__ == '__main__':
+def main():
     #Create option parser.
     parser = OptionParser(usage="usage: %prog [options] DIRECTORY",
                           version="%prog 0.1")
@@ -94,6 +94,11 @@ if __name__ == '__main__':
 
     (options, args) = parser.parse_args()
     
+    if len(args) != 1:
+        print 'Invalid Usage'
+        parser.print_help()
+        return
+
     CHROOT_DIR = args[0]
     writer = FileWriter(CHROOT_DIR, host=options.bind, port=options.port)
 
@@ -107,3 +112,5 @@ if __name__ == '__main__':
     except KeyboardInterrupt:
         print 'Exiting...'
 
+if __name__ == '__main__':
+    main()

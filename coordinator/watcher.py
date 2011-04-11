@@ -70,7 +70,7 @@ class FileSync(object):
                 break
 
 
-if __name__ == '__main__':
+def main():
     #Create option parser.
     parser = OptionParser(usage="usage: %prog [options] DIRECTORY",
                           version="%prog 0.1")
@@ -81,6 +81,11 @@ if __name__ == '__main__':
     parser.add_option("-p", "--port", dest="port", action="store", 
                       default=7890, help="TCP port to bind to, the port +1 from this port is also used.")
     (options, args) = parser.parse_args()
+
+    if len(args) != 1:
+        print 'Invalid Usage'
+        parser.print_help()
+        return
 
     CHROOT_DIR = args[0] #I could probably ACTUALLY USE CHROOT here... save a lot of filename munging
     #os.chroot(CHROOT_DIR) #Needs ROOT
@@ -107,7 +112,8 @@ if __name__ == '__main__':
     except KeyboardInterrupt:
         print 'Exiting...'
 
-
+if __name__ == '__main__':
+    main()
 
 
 
