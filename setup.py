@@ -11,6 +11,8 @@ setup(
     entry_points = {
         'console_scripts':
             ['watcher = coordinator.watcher:main',
-             'listener = coordinator.listener:main'],
+             'listener = coordinator.listener:main',
+             'ngdeploy = coordinator.deploy:main',
+             'watchexec = coordinator.watchexec:main'],
     },
     install_requires=['pyzmq', 'pyinotify'])

@@ -1,7 +1,10 @@
-import os, os.path, time
+import os, os.path, time, logging, shutil
 import zmq, pickle
 from optparse import OptionParser
 from utils import *
+
+logging.basicConfig(format='%(asctime)s [%(name)s - %(levelname)s] %(message)s', level=logging.DEBUG)
+logger = logging.getLogger('coord.listener')
 
 context = zmq.Context()
 
@@ -28,6 +31,8 @@ class FileWriter(object):
                 met = getattr(self, 'command_%s' % command, None)
                 if met is not None:
                     met(*args)
+                else:
+                    logger.warning('Tried to execute unknown command: %s', command)
             except zmq.ZMQError:
                 break
 
@@ -38,17 +43,25 @@ class FileWriter(object):
         if met is not None:
             met(*args)
     
-    def command_RECV(self, filename, content, stat=None):
+    def command_MKDIR(self, filename):
+        logger.debug('Creating Directory %s', filename)
         localname = os.path.join(self.local_chroot, filename)
-        print 'Updating %s' % localname
+        try:
+            os.makedirs(localname)
+        except OSError:
+            logger.error('Exception.', exc_info=True)
+    
+    def command_RECV(self, filename, content, stat=None):
+        logger.debug('Fetching file %s', filename)
+        localname = os.path.join(self.local_chroot, filename)
         with open(localname, 'wb') as fp:
             fp.write(content)
         if stat is not None:
             self.command_META(filename, stat)
 
     def command_META(self, filename, stat):
+        logger.debug('Updating attributes for %s', filename)
         localname = os.path.join(self.local_chroot, filename)
-        print "Fixing Attribs for %s" % localname
         try:
             os.chmod(localname, stat.st_mode)
             os.utime(localname, (stat.st_atime, stat.st_mtime))
@@ -56,29 +69,51 @@ class FileWriter(object):
                 #Can only be done as root
                 os.chown(localname, stat.st_uid, stat.st_gid)
         except OSError, e:
-            print "Failed with OSERROR %s" % str(e)
-
+            logger.error('Exception.', exc_info=True)
+    
+    def command_MOVE(self, fromname, toname):
+        logger.debug('Moving from %s to %s', fromname, toname)
+        localfrom = os.path.join(self.local_chroot, fromname)
+        localto = os.path.join(self.local_chroot, toname)
+        if os.path.isdir(localto):
+            logger.debug('Destination is a directory, removing')
+            shutil.rmtree(localto)
+        try:
+            os.rename(localfrom, localto)
+        except OSError, e:
+            logger.error('Exception during move.', exc_info=True)
+    
     def command_REMV(self, filename):
+        logger.debug('Removing %s', filename)
+
         localname = os.path.join(self.local_chroot, filename)
-        print 'Removing %s' % localname
-        os.remove(localname)
+        if os.path.isfile(localname):
+            os.remove(localname)
+        elif os.path.isdir(localname):
+            shutil.rmtree(localname)
+        else:
+            logger.warning('File %s already gone.', localname)
 
     def command_LIST(self, file_list):
-        for f, md5 in file_list:
+        logger.debug('Received Synchornization List, Processing...')
+        for f, md5, stat in file_list:
             localname = os.path.join(self.local_chroot, f)
             #Check if file exists
             if os.path.exists(localname):
                 #If MD5 is identical
                 if md5 == calculate_md5(localname):
                     continue
+                localstat = os.stat(localname)
+                if localstat != stat:
+                    self.command_META(f, stat)
             #Check at least dir exists
             dirname = os.path.dirname(localname)
             if not os.path.exists(dirname):
-                print 'Creating Directory %s' % dirname
+                logger.debug('Creating Directory %s', dirname)
                 os.makedirs(dirname)
             #Update
             self.send_recv(command('SEND', f))
-        print 'Sync Done.'
+        logger.debug('Sync Done.')
 
 
 def main():
@@ -104,13 +139,14 @@ def main():
 
     try:
         if options.sync:
-            print 'Synchronization, Please Wait...'
+            logger.debug('Requesting Synchronization, Please Wait...')
             writer.start_sync()
 
         while True:
             writer.recv_broadcast()
+            time.sleep(0.0100) #Prevent busy loop
     except KeyboardInterrupt:
-        print 'Exiting...'
+        logger.info('Keyboard Interrupt, Exiting...')
 
 if __name__ == '__main__':
     main()
