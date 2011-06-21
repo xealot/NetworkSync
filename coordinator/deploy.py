@@ -3,7 +3,7 @@ Generate Deployment files from default hostmap in system
 and any app.yml config files that might be present in those 
 folders.
 """
-import os, os.path, subprocess , fnmatch, glob, hashlib, itertools
+import os, os.path, subprocess , fnmatch, glob, hashlib, itertools, signal
 import xmlrpclib
 from optparse import OptionParser
 from utils import UnixSocketTransport
@@ -21,6 +21,16 @@ def reload_nginx():
     command = ['nginx', '-s', 'reload']
     print "Reloading NGINX: %s" % ' '.join(command)
     subprocess.call(command)
+
+def reload_uwsgi():
+    pid = None
+    try:
+        with open('/var/run/uwsgi.pid', 'rb') as fp:
+            pid = fp.read()
+        os.kill(int(pid), signal.SIGHUP)
+        print "Reloading uWSGI Service: %s" % pid
+    except OSError:
+        pass
 
 def reload_supervisor():
     command = ['supervisorctl', 'update']
@@ -153,6 +163,7 @@ def main():
         print 'Reloading Services'
         reload_nginx()
         reload_supervisor()
+        reload_uwsgi()
 
 if __name__ == '__main__':
     main()

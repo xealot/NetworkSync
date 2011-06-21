@@ -180,26 +180,42 @@ def from_app_config(config_file, fcgi_socket_dir, mvh=None):
                     runtime = handler.get('runtime')
                     
                     if runtime == 'python':
+                        #Using uWSGI, all we need is the entry module. Usually a python file.
+                        if 'module' not in handler:
+                            raise AppConfigException('module directive required for python based handler.')
+
+                        #callable_app = handler.get('module').split(':')
+                        #if len(callable_app) == 1:
+                        #    callable_app.append('application')
+
+                        unix_socket = '/var/tmp/uwsgi.sock'
+                        location.add(
+                            Directive('uwsgi_pass', 'unix://%s' % unix_socket),
+                            Directive('include', 'uwsgi_params'),
+                            Directive('uwsgi_param', 'UWSGI_SCRIPT %s' % handler.get('module')),
+                            #Directive('uwsgi_param', 'UWSGI_MODULE %s' % callable_app[0]),
+                            #Directive('uwsgi_param', 'UWSGI_CALLABLE %s' % callable_app[1]),
+                            Directive('uwsgi_param', 'UWSGI_CHDIR %s' % DEFAULT_ROOT),
+                            Directive('uwsgi_param', 'UWSGI_PYTHONPATH %s' % DEFAULT_ROOT),
+                        )
+
                         #Python needs to have a daemon setup (so stupid) that is specific to a wsgi file.
                         #It loads this wsgi application and communicates via an app specfic socket.
-                        if 'fcgi' not in handler:
-                            raise AppConfigException('fcgi directive required for python based handler.')
-                        server.attr('spawn', dict(
-                            procs=3,
-                            script=os.path.join(DEFAULT_ROOT, handler.get('fcgi')),
-                        ))
-                        unix_socket = os.path.join(fcgi_socket_dir, '%s.sock' % app.get('application'))
+                        #server.attr('spawn', dict(
+                        #    procs=3,
+                        #    script=os.path.join(DEFAULT_ROOT, handler.get('fcgi')),
+                        #))
+                        #unix_socket = os.path.join(fcgi_socket_dir, '%s.sock' % app.get('application'))
                     elif runtime == 'php':
                         #PHP just needs the script name, all goes through one socket.
                         unix_socket = '/var/run/php-fpm.sock'
+                        location.add(
+                            Directive('fastcgi_pass', 'unix://%s' % unix_socket),
+                            Directive('include', '/etc/nginx/nginx-fastcgi-params'),
+                        )
                     else:
                         raise AppConfigException('Unknown runtime: %s' % runtime)
 
-                    location.add(
-                        Comment('Requires an external spawn of %s and restart when file changes.' % handler.get('fcgi')),
-                        Directive('fastcgi_pass', 'unix:%s' % unix_socket),
-                        Directive('include', '/etc/nginx/nginx-fastcgi-params'),
-                    )
                 server.add(location)
         config.append(server)
     return config
