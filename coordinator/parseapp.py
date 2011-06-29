@@ -1,4 +1,7 @@
-import yaml, os, os.path, sys
+import site, os.path
+site.addsitedir(os.path.abspath(os.path.join(os.path.dirname(__file__), 'thirdparty')))
+
+import yaml, os, os.path, sys, random
 from optparse import OptionParser
 
 class AppConfigException(Exception): pass
@@ -44,8 +47,10 @@ class Comment(object):
     def output(self, tab=0):
         return '%s# %s' % ((' '*tab*2), self.comment)
 
-def escape_space(arg):
-    return arg.replace(' ', '\ ')
+def escape(arg):
+    if any(map(lambda x: x in arg, ('-', ' '))):
+        return '"%s"' % arg
+    return arg
 
 def create_supervise_config(server_node):
     a = server_node.attrs
@@ -93,7 +98,7 @@ def basic_server(folder, hosts):
     server = Node('server', 
         Comment('Default server spec for %s' % folder),
         #listen='8080', #TMP
-        root=escape_space(folder),
+        root=escape(folder),
         server_name=' '.join(hosts)
     )
     dirs = folder.split('/')
@@ -116,28 +121,33 @@ def from_app_config(config_file, fcgi_socket_dir, mvh=None):
         if not LOG_DIR.startswith(DEFAULT_ROOT):
             raise AppConfigException('Invalid log location specification.')
 
+        site_name = app.get('application', random.randrange(5000, 9999))
+
         server = Node('server', 
-            Comment(app.get('application')),
+            Comment('Config for %s in %s' % (site_name, config_file)),
             #listen='8080', #TMP
             #Not until rotate is done.
             #access_log=os.path.join(LOG_DIR, 'access.log'),
             #error_log='%s error' % os.path.join(LOG_DIR, 'error.log'),
         )
         
-        server.attr('name', app.get('application'))
+        server.attr('name', site_name)
         server.attr('log_dir', LOG_DIR)
         server.attr('root_dir', DEFAULT_ROOT)
-        
+
+        if 'port' in app:
+            server.add(listen=app.get('port'))
+
         server_names = []
         if 'hostname' in app:
             server_names.append(app.get('hostname'))
-            
+
         mvh_setting = app.get('mvh', None)
         if mvh is not None and mvh_setting is not None:
             if mvh_setting == 'normal' or mvh_setting == 'both':
-                server_names.append(mvh)
+                server_names.append('%s.%s' % (site_name, mvh))
             if mvh_setting == 'wildcard' or mvh_setting == 'both':
-                server_names.append('*.%s' % mvh)
+                server_names.append('*.%s.%s' % (site_name, mvh))
         server.add(server_name=' '.join(server_names))
 
         if 'webroot' in app:
@@ -146,9 +156,9 @@ def from_app_config(config_file, fcgi_socket_dir, mvh=None):
             root = os.path.abspath(os.path.join(DEFAULT_ROOT, app.get('webroot')))
             if not root.startswith(DEFAULT_ROOT):
                 raise AppConfigException('Invalid root specification.')
-            server.add(root=escape_space(root))
+            server.add(root=escape(root))
         else:
-            server.add(root=DEFAULT_ROOT)
+            server.add(root=escape(DEFAULT_ROOT))
 
 
         #Whitelisted Directives
@@ -192,11 +202,10 @@ def from_app_config(config_file, fcgi_socket_dir, mvh=None):
                         location.add(
                             Directive('uwsgi_pass', 'unix://%s' % unix_socket),
                             Directive('include', 'uwsgi_params'),
-                            Directive('uwsgi_param', 'UWSGI_SCRIPT %s' % handler.get('module')),
+                            Directive('uwsgi_param', 'UWSGI_SCRIPT %s' % escape(handler.get('module'))),
                             #Directive('uwsgi_param', 'UWSGI_MODULE %s' % callable_app[0]),
                             #Directive('uwsgi_param', 'UWSGI_CALLABLE %s' % callable_app[1]),
-                            Directive('uwsgi_param', 'UWSGI_CHDIR %s' % DEFAULT_ROOT),
-                            Directive('uwsgi_param', 'UWSGI_PYTHONPATH %s' % DEFAULT_ROOT),
+                            Directive('uwsgi_param', 'UWSGI_CHDIR %s' % escape(DEFAULT_ROOT)),
                         )
 
                         #Python needs to have a daemon setup (so stupid) that is specific to a wsgi file.

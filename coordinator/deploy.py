@@ -119,15 +119,15 @@ def scan(locations, app_file='app.yml', skip=None):
         if not os.path.exists(conf_dir):
             os.makedirs(conf_dir)
 
-        dirs = location.split('/')
-        extra_host = MVH_APPEND % (dirs[-1], dirs[-2])
-        
         if os.path.isfile(yml_file):
             #If we have a YAML file, build normally.
-            node = from_app_config(yml_file, conf_dir, mvh=extra_host)
+            node = from_app_config(yml_file, conf_dir, mvh='public.homeplatehq.com')
             deploy_application(conf_dir, node=node)
         else:
             #If there is NO yaml file, just make a skeleton static entry.
+            dirs = location.split('/')
+            extra_host = MVH_APPEND % (dirs[-1], dirs[-2])
+
             node = basic_server(location, [extra_host])
             deploy_application(conf_dir, node=node)
 

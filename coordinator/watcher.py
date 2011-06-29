@@ -125,12 +125,15 @@ class FileSync(object):
     def command_SYNC(self):
         #Gather all files and hashes
         logger.info('Sync Request, Generating List...')
-        return command('LIST', list(generate_file_paths(generate_file_hash(generate_file_tree(self.watch_dir)), self.watch_dir)))
+        return command('LIST', dict(generate_file_paths(generate_file_hash(generate_file_tree(self.watch_dir)), self.watch_dir)))
     
-    def command_SEND(self, filename):
+    def command_SEND(self, filename, stat=False):
         localname = os.path.join(self.watch_dir, filename)
-        with open(localname, 'rb') as fp:
-            cmd = command('RECV', filename, fp.read())
+        if os.path.isfile(localname):
+            with open(localname, 'rb') as fp:
+                cmd = command('RECV', filename, fp.read(), None if stat is False else os.stat(localname))
+        if os.path.isdir(localname):
+            cmd = command('MKDIR', filename)
         return cmd
     
     def check_messages(self):

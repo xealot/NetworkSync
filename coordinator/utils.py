@@ -14,6 +14,13 @@ def get_file_contents(filename):
 def get_file_stats(filename):
     return os.stat(filename)
 
+COMPARABLE_STATS = ('st_mode', 'st_uid', 'st_gid', 'st_mtime')
+def compare_file_stat(a, b):
+    for attr in COMPARABLE_STATS:
+        if getattr(a, attr) != getattr(b, attr):
+            return False
+    return True
+
 def calculate_md5(filename):
     m = md5()
     with open(filename, 'rb') as fp:
@@ -30,19 +37,28 @@ def strip_local_path(filename, path):
         filename = filename[1:]
     return filename
 
-def generate_file_tree(top):
+def generate_file_tree(top, include_hidden=False):
     #Generate file tree relative to top dir.
     for path, dirlist, filelist in os.walk(top):
+        for d in dirlist:
+            if include_hidden is False and d.startswith('.'):
+                continue
+            yield os.path.join(path, d+'/')
         for f in filelist:
+            if include_hidden is False and f.startswith('.'):
+                continue
             yield os.path.join(path, f)
 
 def generate_file_hash(files):
     for f in files:
-        yield f, calculate_md5(f), get_file_stats(f)
+        stats = None
+        if os.path.isfile(f):
+            stats = (calculate_md5(f), get_file_stats(f))
+        yield f, stats
 
 def generate_file_paths(tuples, top_dir):
-    for path, md5, stat in tuples:
-        yield strip_local_path(path, top_dir), md5, stat
+    for path, info in tuples:
+        yield strip_local_path(path, top_dir), info
 
 
 #The following skullduggery are two classes are to simulate an HTTP connection through a local socket.
