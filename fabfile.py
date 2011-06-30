@@ -69,8 +69,8 @@ def update():
 @roles('ftp')
 def config():
     #put('./config/nginx_main.conf', '/etc/nginx/nginx.conf', use_sudo=True)
-    #put('./config/nginx_defaults.conf', '/etc/nginx/conf.d/defaults.conf', use_sudo=True)
-    put('./config/nginx-fastcgi-params', '/etc/nginx/nginx-fastcgi-params', use_sudo=True)
+    put('./config/nginx_defaults.conf', '/etc/nginx/conf.d/defaults.conf', use_sudo=True)
+    #put('./config/nginx-fastcgi-params', '/etc/nginx/nginx-fastcgi-params', use_sudo=True)
     #put('./config/supervisor_main.conf', '/etc/supervisor/supervisord.conf', use_sudo=True)
     #put('./config/appwatcher.conf', '/etc/supervisor/conf.d/appwatcher.conf', use_sudo=True)
     #put('./config/listener.conf', '/etc/supervisor/conf.d/listener.conf', use_sudo=True)

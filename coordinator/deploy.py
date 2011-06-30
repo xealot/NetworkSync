@@ -46,7 +46,7 @@ def create_symlink(link, filename):
         os.remove(link)
     os.symlink(filename, link)
 
-def deploy_application(conf_dir, node):
+def deploy_application(conf_dir, node, map):
     changed_config = False
     #Remove config files before creating them (this is a bad way to work this)
     for fn in glob.glob(os.path.join(conf_dir, '*.nginx')) + glob.glob(os.path.join(conf_dir, '*.supervise')):
@@ -54,6 +54,7 @@ def deploy_application(conf_dir, node):
 
     for server in node:
         server_name = server.attrs.get('name')
+        map[server_name] = server.attrs.get('canonical')
         
         outfile = os.path.join(conf_dir, '%s.nginx' % server_name)
         outcont = server.output()
@@ -96,6 +97,7 @@ def deploy_application(conf_dir, node):
     return changed_config
 
 def scan(locations, app_file='app.yml', skip=None):
+    hostmap = {}
     for location in locations:
         if skip is not None and fnmatch.fnmatch(location, skip):
             print 'Skipping "%s" because of skip directive' % location
@@ -122,14 +124,15 @@ def scan(locations, app_file='app.yml', skip=None):
         if os.path.isfile(yml_file):
             #If we have a YAML file, build normally.
             node = from_app_config(yml_file, conf_dir, mvh='public.homeplatehq.com')
-            deploy_application(conf_dir, node=node)
+            deploy_application(conf_dir, node=node, map=hostmap)
         else:
             #If there is NO yaml file, just make a skeleton static entry.
             dirs = location.split('/')
-            extra_host = MVH_APPEND % (dirs[-1], dirs[-2])
+            default_host = MVH_APPEND % (dirs[-1], dirs[-2])
 
-            node = basic_server(location, [extra_host])
-            deploy_application(conf_dir, node=node)
+            node = basic_server(location, default_host)
+            deploy_application(conf_dir, node=node, map=hostmap)
+    print hostmap
 
 def main():
     #print rpc.supervisor.getState()

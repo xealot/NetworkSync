@@ -92,17 +92,18 @@ def create_update_script(yml_file):
 ngdeploy -f %s
 """ % yml_file
 
-def basic_server(folder, hosts):
+def basic_server(folder, host):
     #Create just a basic server{} node with the specified folder and hosts.
     node = Group()
     server = Node('server', 
         Comment('Default server spec for %s' % folder),
         #listen='8080', #TMP
         root=escape(folder),
-        server_name=' '.join(hosts)
+        server_name=host
     )
     dirs = folder.split('/')
     server.attr('name', '%s-%s' % (dirs[-2], dirs[-1]))
+    server.attr('canonical', host)
     node.append(server)
     return node
 
@@ -132,6 +133,7 @@ def from_app_config(config_file, fcgi_socket_dir, mvh=None):
         )
         
         server.attr('name', site_name)
+        server.attr('canonical', '%s.%s' % (site_name, mvh))
         server.attr('log_dir', LOG_DIR)
         server.attr('root_dir', DEFAULT_ROOT)
 
@@ -142,12 +144,11 @@ def from_app_config(config_file, fcgi_socket_dir, mvh=None):
         if 'hostname' in app:
             server_names.append(app.get('hostname'))
 
-        mvh_setting = app.get('mvh', None)
-        if mvh is not None and mvh_setting is not None:
-            if mvh_setting == 'normal' or mvh_setting == 'both':
-                server_names.append('%s.%s' % (site_name, mvh))
-            if mvh_setting == 'wildcard' or mvh_setting == 'both':
-                server_names.append('*.%s.%s' % (site_name, mvh))
+        mvh_setting = app.get('mvh', 'normal')
+        if mvh_setting == 'normal' or mvh_setting == 'both':
+            server_names.append('%s.%s' % (site_name, mvh))
+        if mvh_setting == 'wildcard' or mvh_setting == 'both':
+            server_names.append('*.%s.%s' % (site_name, mvh))
         server.add(server_name=' '.join(server_names))
 
         if 'webroot' in app:
