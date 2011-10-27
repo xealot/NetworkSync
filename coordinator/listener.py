@@ -152,6 +152,7 @@ class FileWriter(object):
 
 
 def main():
+    print 'Listener 0.01'
     #Create option parser.
     parser = OptionParser(usage="usage: %prog [options] DIRECTORY",
                           version="%prog 0.1")

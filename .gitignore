@@ -15,3 +15,5 @@ deploy.js
 public/deploy/combined.*
 build
 dist
+FileCoordinator.egg-info
+.idea

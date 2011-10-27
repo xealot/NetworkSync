@@ -46,7 +46,7 @@ def create_symlink(link, filename):
         os.remove(link)
     os.symlink(filename, link)
 
-def deploy_application(conf_dir, node, map):
+def deploy_application(conf_dir, node):
     changed_config = False
     #Remove config files before creating them (this is a bad way to work this)
     for fn in glob.glob(os.path.join(conf_dir, '*.nginx')) + glob.glob(os.path.join(conf_dir, '*.supervise')):
@@ -54,8 +54,7 @@ def deploy_application(conf_dir, node, map):
 
     for server in node:
         server_name = server.attrs.get('name')
-        map[server_name] = server.attrs.get('canonical')
-        
+
         outfile = os.path.join(conf_dir, '%s.nginx' % server_name)
         outcont = server.output()
         write_webconf = True
@@ -96,6 +95,11 @@ def deploy_application(conf_dir, node, map):
             os.remove(outfile)
     return changed_config
 
+def build_hostmap(hosts):
+    ssl_url = '%s.securenetwork.cc'
+    with open(os.path.join('/mnt/conf', 'ssl_canonical.map'), 'w') as fp:
+        fp.write('\n'.join(['%s %s;' % (ssl_url % host, canonical) for host, canonical in hosts.items()]))
+
 def scan(locations, app_file='app.yml', skip=None):
     hostmap = {}
     for location in locations:
@@ -123,16 +127,22 @@ def scan(locations, app_file='app.yml', skip=None):
 
         if os.path.isfile(yml_file):
             #If we have a YAML file, build normally.
+            print 'Parsing YAML file %s' % yml_file
             node = from_app_config(yml_file, conf_dir, mvh='public.homeplatehq.com')
-            deploy_application(conf_dir, node=node, map=hostmap)
+            for server in node:
+                hostmap[server.attrs.get('name')] = server.attrs.get('canonical')
+            deploy_application(conf_dir, node=node)
         else:
             #If there is NO yaml file, just make a skeleton static entry.
+            print 'NO YAML, Creating Basic Site'
             dirs = location.split('/')
             default_host = MVH_APPEND % (dirs[-1], dirs[-2])
 
             node = basic_server(location, default_host)
-            deploy_application(conf_dir, node=node, map=hostmap)
-    print hostmap
+            for server in node:
+                hostmap[server.attrs.get('name')] = server.attrs.get('canonical')
+            deploy_application(conf_dir, node=node)
+    build_hostmap(hostmap)
 
 def main():
     #print rpc.supervisor.getState()

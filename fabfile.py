@@ -1,4 +1,4 @@
-import time, hmac, sha, base64, urllib
+import time, hmac, sha, base64, urllib, os
 import boto.ec2.connection
 import functools
 import fabric.colors
@@ -33,7 +33,7 @@ def _s3_signature(resource, expires=None):
     
 
 #env.hosts = _get_ec2_hostnames(type='web')
-env.key_filename = '/home/trey/Work/aws/basewebkey.pem'
+env.key_filename = '/Users/trey/Work/aws/mactruck'
 env.user = 'ubuntu'
 env.disable_known_hosts = True
 env.roledefs = {
@@ -47,6 +47,10 @@ def hosts(type='ftp'):
 @roles('ftp')
 def supervisectl(cmd):
     run('supervisorctl ' + cmd)
+
+@roles('ftp')
+def deploy():
+    sudo('ngdeploy -r -s "*userfiles" /mnt/repo/*/*')
 
 @roles('coord')
 def rewatch():
@@ -63,8 +67,8 @@ def dist():
 @roles('ftp', 'coord')
 def update():
     dist()
-    put('./dist/FileCoordinator-0.1-py2.6.egg', 'FileCoordinator-0.1-py2.6.egg')
-    sudo('easy_install ~/FileCoordinator-0.1-py2.6.egg')
+    put('./dist/FileCoordinator-0.1-py2.7.egg', 'FileCoordinator-0.1-py2.7.egg')
+    sudo('easy_install ~/FileCoordinator-0.1-py2.7.egg')
 
 @roles('ftp')
 def config():

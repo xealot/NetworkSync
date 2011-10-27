@@ -137,6 +137,10 @@ def from_app_config(config_file, fcgi_socket_dir, mvh=None):
         server.attr('log_dir', LOG_DIR)
         server.attr('root_dir', DEFAULT_ROOT)
 
+        server.attr('ssl', False)
+        if app.get('ssl', 'on'):
+            server.attr('ssl', True)
+
         if 'port' in app:
             server.add(listen=app.get('port'))
 
@@ -185,9 +189,9 @@ def from_app_config(config_file, fcgi_socket_dir, mvh=None):
                 if 'rewrites' in handler:
                     for rewrite in handler.get('rewrites'):
                         location.add(Directive('rewrite', rewrite))
-                elif 'static' in handler:
+                if 'static' in handler:
                     location.add(Directive('root', handler.get('static')))
-                elif 'runtime' in handler:
+                if 'runtime' in handler:
                     runtime = handler.get('runtime')
                     
                     if runtime == 'python':
